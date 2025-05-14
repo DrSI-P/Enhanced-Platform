@@ -1,15 +1,17 @@
-import '@/styles/globals.css';
-import type { AppProps } from 'next/app';
-import { SessionProvider } from 'next-auth/react';
-import { Inter } from 'next/font/google';
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import ChatbotWidget from "@/components/ui/ChatbotWidget";
+import CookieConsentBanner from "@/components/ui/CookieConsentBanner"; // Added import
+import "@/styles/globals.css";
+import type { AppProps } from "next/app";
+import { SessionProvider } from "next-auth/react";
+import { Inter } from "next/font/google";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export default function App({
   Component,
-  pageProps: { session, ...pageProps }
+  pageProps: { session, ...pageProps },
 }: AppProps) {
   const router = useRouter();
 
@@ -20,9 +22,9 @@ export default function App({
       console.log(`App navigated to: ${url}`);
     };
 
-    router.events.on('routeChangeComplete', handleRouteChange);
+    router.events.on("routeChangeComplete", handleRouteChange);
     return () => {
-      router.events.off('routeChangeComplete', handleRouteChange);
+      router.events.off("routeChangeComplete", handleRouteChange);
     };
   }, [router.events]);
 
@@ -30,6 +32,8 @@ export default function App({
     <SessionProvider session={session}>
       <main className={inter.className}>
         <Component {...pageProps} />
+        <ChatbotWidget />
+        <CookieConsentBanner /> {/* Added component */}
       </main>
     </SessionProvider>
   );

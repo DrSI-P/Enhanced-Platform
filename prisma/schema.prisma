@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    @default("user") // user, educator, psychologist, parent, student, admin
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  resources     Resource[]
+  assessments   Assessment[]
+  profiles      Profile[]
+}
+
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  bio           String?
+  organization  String?
+  position      String?
+  specialties   String[]
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Resource {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  content       String?
+  fileUrl       String?
+  type          String    // document, video, audio, link, etc.
+  tags          String[]
+  authorId      String
+  author        User      @relation(fields: [authorId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  published     Boolean   @default(false)
+  views         Int       @default(0)
+  downloads     Int       @default(0)
+  ratings       Rating[]
+  comments      Comment[]
+}
+
+model Rating {
+  id            String    @id @default(cuid())
+  resourceId    String
+  resource      Resource  @relation(fields: [resourceId], references: [id])
+  userId        String
+  value         Int       // 1-5 star rating
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([resourceId, userId])
+}
+
+model Comment {
+  id            String    @id @default(cuid())
+  resourceId    String
+  resource      Resource  @relation(fields: [resourceId], references: [id])
+  content       String
+  authorId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Assessment {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  type          String    // cognitive, literacy, social-emotional, etc.
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  studentId     String?
+  data          Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completed     Boolean   @default(false)
+}
+
+model Course {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  content       Json
+  authorId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  published     Boolean   @default(false)
+  enrollments   Enrollment[]
+}
+
+model Enrollment {
+  id            String    @id @default(cuid())
+  courseId      String
+  course        Course    @relation(fields: [courseId], references: [id])
+  userId        String
+  progress      Float     @default(0) // 0-100%
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completed     Boolean   @default(false)
+
+  @@unique([courseId, userId])
+}

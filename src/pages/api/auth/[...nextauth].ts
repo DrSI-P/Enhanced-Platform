@@ -14,49 +14,39 @@ export default NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // This is a simplified version for demonstration
-        // In production, you would fetch the user from your database
         if (!credentials?.email || !credentials?.password) {
+          console.log('Missing credentials');
           return null;
         }
 
         try {
-          // In a real implementation, you would use Prisma to fetch the user
-          // const user = await prisma.user.findUnique({
-          //   where: { email: credentials.email }
-          // });
-          
-          // For demo purposes, we'll use a hardcoded user
-          const user = {
-            id: '1',
-            name: 'Demo User',
-            email: 'demo@edpsychconnect.com',
-            password: '$2b$10$8r0qPVaJIIiZ7/QZm0xK2eQSVyVYjlH7pfKmVVFrjqhI2BZ1gPyTa', // hashed 'password123'
-            role: 'educator'
-          };
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          });
 
           if (!user) {
+            console.log('No user found with email:', credentials.email);
             return null;
           }
 
-          // In production, you would use bcrypt to compare passwords
-          // const isPasswordValid = await compare(credentials.password, user.password);
-          
-          // For demo purposes, we'll accept any password for the demo user
-          const isPasswordValid = credentials.email === 'demo@edpsychconnect.com';
-
+          // Implement bcrypt password comparison
+          const isPasswordValid = await compare(credentials.password, user.password);
           if (!isPasswordValid) {
+            console.log('Invalid password for user:', credentials.email);
             return null;
           }
+
+          console.log('User authenticated successfully:', user.email);
 
           return {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role
+            // @ts-ignore
+            role: user.role // Prisma schema defines role, ensuring it's passed
           };
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('Auth error during Prisma lookup or password comparison:', error);
           return null;
         }
       }
@@ -69,13 +59,19 @@ export default NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        // @ts-ignore
         token.role = user.role;
+        // @ts-ignore
+        token.id = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
+        // @ts-ignore
         session.user.role = token.role;
+        // @ts-ignore
+        session.user.id = token.id;
       }
       return session;
     }
@@ -83,7 +79,9 @@ export default NextAuth({
   pages: {
     signIn: '/login',
     signOut: '/',
-    error: '/login',
+    error: '/login', // Redirect to login page on error
   },
   secret: process.env.NEXTAUTH_SECRET || 'your-secret-key-for-development',
+  debug: process.env.NODE_ENV === 'development',
 });
+

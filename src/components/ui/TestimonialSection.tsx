@@ -1,24 +1,26 @@
+import { Quote } from 'lucide-react'; // Using Lucide icon for quotes
+
 const testimonials = [
   {
-    quote: "EdPsych Connect has transformed how we support students with learning differences. The personalized approach and evidence-based tools have made a significant impact on student outcomes.",
+    quote: "EdPsych Connect has transformed how we support students with learning differences. The personalised approach and evidence-based tools have made a significant impact on student outcomes.",
     name: "Dr. Emma Thompson",
     title: "Head of SEN Department, Oakridge Academy",
     initials: "ET",
-    bgColor: "bg-indigo-500"
+    bgColor: "bg-primary-500" // Using primary color from Tailwind config
   },
   {
     quote: "As an educational psychologist, the assessment tools and collaborative features have streamlined my workflow and improved communication with schools and families.",
     name: "James Wilson",
     title: "Educational Psychologist, London Borough",
     initials: "JW",
-    bgColor: "bg-blue-500"
+    bgColor: "bg-secondary-500" // Using secondary color
   },
   {
     quote: "The curriculum planning tools have been invaluable for creating inclusive learning environments that address diverse student needs.",
     name: "Sarah Ahmed",
     title: "Curriculum Coordinator, Riverside School",
     initials: "SA",
-    bgColor: "bg-purple-500"
+    bgColor: "bg-accent-teal" // Using an accent color
   }
 ];
 
@@ -33,23 +35,21 @@ export default function TestimonialSection() {
           </p>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <div key={index} className="card bg-white">
-              <div className="mb-6">
-                <svg className="h-8 w-8 text-indigo-500" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                </svg>
+            <div key={index} className="card bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
+              <div className="mb-6 text-primary-500">
+                <Quote size={36} className="transform -scale-x-100" /> {/* Lucide Quote icon, scaled for visual balance */}
               </div>
-              <p className="text-gray-700 mb-6 italic">{testimonial.quote}</p>
-              <div className="flex items-center">
-                <div className="mr-4">
-                  <div className={`${testimonial.bgColor} w-12 h-12 rounded-full flex items-center justify-center text-white font-bold`}>
+              <p className="text-gray-700 mb-6 italic text-base leading-relaxed flex-grow">{testimonial.quote}</p>
+              <div className="flex items-center mt-auto pt-6 border-t border-gray-200">
+                <div className="mr-4 flex-shrink-0">
+                  <div className={`${testimonial.bgColor} w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md`}>
                     {testimonial.initials}
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-800">{testimonial.name}</h4>
+                  <h4 className="font-semibold text-gray-900 text-lg">{testimonial.name}</h4>
                   <p className="text-gray-600 text-sm">{testimonial.title}</p>
                 </div>
               </div>

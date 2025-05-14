@@ -42,4 +42,11 @@ This checklist outlines the tasks for Phase 3, starting with the **Dynamic AI Le
     *   [X] **Task 1.2.7.2:** Develop the chosen mini-game(s) as simple, standalone HTML/JavaScript snippets or integrate into the Python-generated interface.
     *   [X] **Task 1.2.7.3:** Integrate logic to trigger mini-games as rewards after completing learning objectives or pathway segments..
     *   [X] **Task 1.2.7.4:** Validate mini-game functionality and integration within the DALA prototype..
-    *   [ ] **Task 1.2.7.5:** Collect user feedback on the mini-game concepts and implementation.
+    *   [X] **Task 1.2.7.5:** Collect user feedback on the mini-game concepts and implementation.
+
+
+
+**1.2.8: Stage 1 - Documentation & Code Commit**
+    *   [X] **Task 1.2.8.1:** Draft Stage 1 Prototype Documentation.
+    *   [X] **Task 1.2.8.2:** Review and Edit Stage 1 Prototype Documentation.
+    *   [ ] **Task 1.2.8.3:** Commit all code and documentation to GitHub.

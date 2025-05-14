@@ -10,11 +10,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("OpenAI API key not found. Please set it in the .env file.")
 
-openai.api_key = OPENAI_API_KEY
+# Initialize the AsyncOpenAI client
+# openai.api_key = OPENAI_API_KEY # This is no longer needed for client initialization in v1.0+
+client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 async def generate_text(prompt: str, model: str = "gpt-4o", max_tokens: int = 2000, temperature: float = 0.7) -> str:
     """
-    Generates text using the OpenAI API.
+    Generates text using the OpenAI API (v1.0+).
 
     Args:
         prompt: The prompt to send to the model.
@@ -26,7 +28,7 @@ async def generate_text(prompt: str, model: str = "gpt-4o", max_tokens: int = 20
         The generated text as a string.
     """
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = await client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant for an educational psychology platform aimed at the UK market. Your tone should be empathetic, authoritative, and accessible. All content must be evidence-based and practical, using UK English spelling and terminology. Focus on being positive and empowering, aligning with a \"restoring genius\" philosophy."},
@@ -39,9 +41,11 @@ async def generate_text(prompt: str, model: str = "gpt-4o", max_tokens: int = 20
             # presence_penalty=0.0 # Default
         )
         if response.choices and len(response.choices) > 0:
+            # Accessing content is now response.choices[0].message.content
             return response.choices[0].message.content.strip()
         else:
             return "Error: No response from OpenAI API or empty choices array."
+    # Adjust exception handling for v1.0+ if specific error types have changed
     except openai.APIError as e:
         # Handle API error here, e.g. retry or log
         print(f"OpenAI API returned an API Error: {e}")

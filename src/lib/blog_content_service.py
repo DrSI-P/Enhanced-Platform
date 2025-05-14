@@ -102,11 +102,7 @@ async def generate_blog_post_for_theme(theme_index: int, article_summaries_for_t
 #     if result:
 #         print(f"\n--- BLOG POST FOR: {result['theme']} ---")
 #         # print(f"Identified Trends: {result['trending_subtopics_identified']}")
-#         # print(f"\n--- PROMPT USED ---\n{result['prompt_used']}\n-------------------")
-#         print(f"\n--- GENERATED ARTICLE (Markdown) ---
-{result['generated_article_markdown']}
-------------------------------------")
-        
+#         # print(f"\n--- PROMPT USED ---\n{result['prompt_used']}\n-------------------")#         # print("Debug: Generated article would be printed here. This line was modified to fix a syntax error.")        
 #         # Save the generated article to a file
 #         output_filename = f"/home/ubuntu/generated_blog_post_{result['theme'].replace(' ', '_').replace('&', 'and')}.md"
 #         with open(output_filename, "w", encoding="utf-8") as f:
@@ -120,4 +116,62 @@ async def generate_blog_post_for_theme(theme_index: int, article_summaries_for_t
 #     # Ensure .env file is at /home/ubuntu/edpsychconnect/.env with OPENAI_API_KEY
 #     asyncio.run(main())
 
+
+
+async def generate_blog_post_content(
+    topic: str,
+    specific_angle: Optional[str] = None,
+    target_audience: str = "UK parents and educators",
+    word_count: int = 1000,
+    references_to_include: Optional[List[str]] = None, # This will be used if dr_patrick_work_snippets is None
+    custom_instructions: Optional[str] = None,
+    dr_patrick_work_snippets: Optional[List[str]] = None
+) -> Optional[str]:
+    """
+    Generates blog post content based on a specific topic and angle.
+    This function is called by the test script generate_test_blog_posts.py
+    """
+    print(f"Starting direct blog post generation for topic: {topic}, angle: {specific_angle}")
+
+    # Consolidate key angles for the prompt
+    key_angles_for_prompt = []
+    if topic:
+        key_angles_for_prompt.append(topic) # Add main topic as a key angle
+    if specific_angle:
+        key_angles_for_prompt.append(specific_angle) # Add specific angle if provided
+    if not key_angles_for_prompt: # Fallback if both are somehow empty
+        print("Error: Topic and specific_angle cannot both be empty.")
+        return None
+
+    # Determine which references to use
+    final_references = dr_patrick_work_snippets if dr_patrick_work_snippets else references_to_include
+    if not final_references:
+        # Default references if none are provided at all
+        final_references = [
+            "The importance of a relationship-based approach (Restorative Justice principles).",
+            "Focus on understanding the child's perspective and unmet needs.",
+            "Adherence to UK DfE guidelines and evidence-based practices."
+        ]
+
+    blog_prompt_text = create_blog_post_prompt(
+        topic=topic, # The main topic for context
+        key_angles=key_angles_for_prompt, # Combined topic and specific angle
+        target_audience=target_audience,
+        word_count=word_count,
+        references_to_include=final_references,
+        custom_instructions=custom_instructions
+    )
+
+    # print(f"\n--- Direct Blog Post Prompt for LLM ---\n{blog_prompt_text}\n---------------------------------------\n") # For debugging
+
+    print(f"Generating blog post content for: {topic} with angle: {specific_angle}...")
+    # The BLOG_SYSTEM_PROMPT is used by generate_text internally
+    generated_content_markdown = await generate_text(blog_prompt_text, model="gpt-4o", max_tokens=word_count + 800, temperature=0.75)
+
+    if generated_content_markdown is None or generated_content_markdown.startswith("Error:"):
+        print(f"Failed to generate blog post: {generated_content_markdown}")
+        return None
+
+    print(f"Successfully generated blog post for {topic}.")
+    return generated_content_markdown
 

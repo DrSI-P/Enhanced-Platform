@@ -10,7 +10,6 @@ print(f"Current working directory: {os.getcwd()}")
 # For example, if blog_content_service is in src/lib, then src/lib/__init__.py should exist.
 
 from src.lib.blog_content_service import generate_blog_post_content
-from src.lib.topic_identifier_service import identify_trending_topics # For potential future use or if needed for specific angles
 
 async def generate_test_posts():
     drafts_dir = "/home/ubuntu/edpsychconnect/content/blog/drafts"

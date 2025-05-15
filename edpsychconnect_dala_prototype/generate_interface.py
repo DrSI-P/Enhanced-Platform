@@ -1,0 +1,1302 @@
+"""
+EdPsych Connect - Dynamic AI Learning Architect (DALA)
+Simple Student Interface Prototype - HTML Generator (Stage 2 Enhancements)
+
+This script generates a basic HTML page to simulate the student interface for:
+1.  HLP diagnostic tasks (simulated choices).
+2.  Interest selection (simulated choices).
+3.  Struggle area identification (interactive selection and display).
+4.  Learning goal setting (interactive input and display).
+5.  New Stage 2 HLP Sophisticated Diagnostic Mini-Tasks.
+6.  Displaying a personalized learning pathway.
+7.  Includes a simple "Star Collector" mini-game as a reward.
+8.  Integrates the "Adventure Quest Saga" visual progress tracking system with image assets.
+9.  Integrates a badge and achievement system (display and awarding logic).
+10. Includes a basic prototype for voice input using Web Speech API.
+
+It will use the existing hlp_module and dcw_apg_module.
+Accessibility features (voice input, text-to-speech) are noted for future integration.
+Visual enhancements are applied for better engagement.
+"""
+
+import os
+import html
+import random
+import datetime # For formatting badge earned date
+from hlp_module import (
+    LearnerProfile, PREDEFINED_INTERESTS, PREDEFINED_STRUGGLE_AREAS,
+    run_visual_preference_task, run_textual_preference_task,
+    capture_student_interests, capture_student_struggles,
+    run_story_weaver_task, run_mind_mapper_task, # Removed run_sound_sculptor_task as it's not in hlp_module
+    BADGE_DEFINITIONS, check_and_award_all_relevant_badges, run_full_hlp_assessment # Updated imports
+)
+from curriculum_content_module import CurriculumContentStore, CURRICULUM_SLICE, LEARNING_CONTENT_SET
+from dcw_apg_module import PathwayGenerator
+
+# Ensure all literal curly braces in JS are doubled {{{{ or }}}} for .format()
+# Ensure JS template literals like `${{js_var}}` become `$${{{{js_var}}}}`
+HTML_TEMPLATE_V14_VOICE_INPUT = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DALA Learning Adventure! - Voice Input Prototype</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Fredoka+One&display=swap");
+
+        body {{{{
+            font-family: "Poppins", sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #4A4A4A;
+            line-height: 1.7;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-top: 30px;
+            padding-bottom: 30px;
+        }}}}
+        .container {{{{
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            max-width: 850px;
+            width: 90%;
+            margin: 20px auto;
+        }}}}
+        h1 {{{{
+            font-family: "Fredoka One", cursive;
+            color: #5e35b1;
+            text-align: center;
+            font-size: 2.8em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }}}}
+        h2 {{{{
+            font-family: "Fredoka One", cursive;
+            color: #00796b;
+            border-bottom: 3px dashed #764ba2;
+            padding-bottom: 10px;
+            margin-top: 35px;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+        }}}}
+        h3 {{{{
+            font-family: "Poppins", sans-serif;
+            font-weight: 600;
+            color: #1e88e5;
+            margin-top: 25px;
+            font-size: 1.3em;
+        }}}}
+        h4 {{{{
+            font-family: "Poppins", sans-serif;
+            font-weight: 600;
+            color: #3949ab;
+            margin-top: 20px;
+            font-size: 1.1em;
+        }}}}
+        .section {{{{
+            margin-bottom: 35px;
+            padding: 25px;
+            background-color: #f7f9fc;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }}}}
+        .section:hover {{{{
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }}}}
+        .button {{{{
+            background-image: linear-gradient(to right, #ff7e5f, #feb47b);
+            color: white;
+            padding: 14px 25px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-right: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}}}
+        .button:hover {{{{
+            background-image: linear-gradient(to right, #feb47b, #ff7e5f);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }}}}
+        .button[disabled] {{{{
+            background-image: none;
+            background-color: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }}}}
+        ul {{{{
+            list-style-type: none;
+            padding-left: 0;
+        }}}}
+        li {{{{
+            background-color: #ffffff;
+            margin-bottom: 12px;
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 6px solid #66bb6a;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.07);
+            transition: transform 0.2s ease;
+        }}}}
+        li:hover {{{{
+            transform: translateX(5px);
+        }}}}
+        .lo-title {{{{
+            font-weight: 700;
+            color: #3949ab;
+            font-size: 1.15em;
+            margin-bottom: 5px;
+        }}}}
+        .content-title {{{{
+            margin-left: 15px;
+            color: #546e7a;
+            font-size: 1em;
+        }}}}
+        .content-title em {{{{
+            color: #78909c;
+            font-size: 0.9em;
+        }}}}
+        pre {{{{
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f5f5f5;
+            padding: 18px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            font-size: 0.95em;
+            color: #37474f;
+            max-height: 250px;
+            overflow-y: auto;
+        }}}}
+        strong {{{{ color: #ef5350; }}}}
+        em {{{{ color: #26a69a; }}}}
+        .section-icon {{{{
+            margin-right: 12px;
+            font-size: 1.5em;
+            color: #7e57c2;
+        }}}}
+        .section-icon img {{{{
+            width: 1.5em; /* Match font size */
+            height: 1.5em;
+            vertical-align: middle;
+        }}}}
+        .diagnostic-task-result {{{{
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 5px solid #4caf50;
+        }}}}
+        .diagnostic-task-result p {{ margin: 5px 0; }}
+
+        .interactive-selection-area label {{{{
+            display: block;
+            margin-bottom: 8px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }}}}
+        .interactive-selection-area label:hover {{{{
+            background-color: #f0f4f8;
+            border-color: #00796b;
+        }}}}
+        .interactive-selection-area input[type="checkbox"] {{{{
+            margin-right: 10px;
+            transform: scale(1.2);
+        }}}}
+        .interactive-selection-area input[type="text"],
+        .goal-input-area textarea {{{{
+            width: calc(100% - 22px); /* Default width */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-family: "Poppins", sans-serif;
+            font-size: 1em;
+            margin-top: 5px;
+        }}}}
+        .input-with-mic {{{{
+            display: flex;
+            align-items: center;
+        }}}}
+        .input-with-mic input[type="text"],
+        .input-with-mic textarea {{{{
+            flex-grow: 1;
+            margin-right: 10px; /* Space between input and mic button */
+        }}}}
+        .mic-button {{{{
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5em;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }}}}
+        .mic-button:hover {{{{
+            background-color: #1565c0;
+        }}}}
+        .mic-button.listening {{{{
+            background-color: #d32f2f; /* Red when listening */
+        }}}}
+        .mic-button[disabled] {{{{
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }}}}
+        #voiceStatus {{{{
+            font-size: 0.9em;
+            color: #546e7a;
+            margin-top: 5px;
+            min-height: 1.2em; /* Reserve space for messages */
+        }}}}
+
+        .selected-items-display {{{{
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            border: 1px dashed #90caf9;
+        }}}}
+        .selected-items-display p em {{{{
+            color: #546e7a;
+        }}}}
+        .selected-item-tag {{{{
+            display: inline-block;
+            background-color: #66bb6a;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }}}}
+        .goal-input-area textarea {{{{
+            resize: vertical;
+            min-height: 60px;
+        }}}}
+
+        #gameCanvas {{{{
+            border: 3px dashed #764ba2;
+            background-color: #fafafa;
+            border-radius: 12px;
+            cursor: crosshair;
+            margin-top: 15px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }}}}
+        .game-info {{{{
+            font-size: 1.2em;
+            color: #004d40;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: 600;
+        }}}}
+        #gameMessage {{{{
+            text-align: center;
+            font-weight: 600;
+            color: #d32f2f;
+            min-height: 20px;
+            margin-top: 10px;
+        }}}}
+        .game-section .button {{{{
+             display: block;
+             margin: 20px auto 0 auto;
+        }}}}
+        .accessibility-controls h3 .section-icon {{ color: #42a5f5; }}
+
+        /* Adventure Quest Saga Styles */
+        .adventure-quest-section {{{{
+            background-color: #e0f2f1; /* Light teal background */
+            border: 2px dashed #00796b;
+        }}}}
+        .adventure-map {{{{
+            width: 100%;
+            height: 350px; 
+            background-image: url("./assets/adventure_quest_saga/world_map_background.png");
+            background-size: cover; 
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden; 
+            margin-bottom: 20px;
+            border: 3px solid #004d40;
+        }}}}
+        .map-path {{{{
+            position: absolute;
+            height: 8px; 
+            background-color: rgba(255, 220, 100, 0.8); 
+            top: 50%;
+            left: 5%; 
+            right: 5%; 
+            transform: translateY(-50%);
+            z-index: 1;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }}}}
+        .map-node {{{{
+            width: 40px; 
+            height: 40px;
+            background-color: #ff8f00; 
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1em;
+            border: 3px solid #e65100; 
+            position: absolute; 
+            z-index: 2;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+            cursor: pointer; 
+            transition: transform 0.2s ease;
+        }}}}
+        .map-node:hover {{{{
+            transform: scale(1.1);
+        }}}}
+        .map-node.completed {{{{
+            background-color: #4caf50; 
+            border-color: #2e7d32;
+        }}}}
+        .map-node.current {{{{
+            background-color: #1e88e5; 
+            border-color: #0d47a1;
+            transform: scale(1.2);
+            animation: pulse 1.5s infinite;
+        }}}}
+        @keyframes pulse {{{{
+            0% {{ box-shadow: 0 0 0 0 rgba(30, 136, 229, 0.7); }}
+            70% {{ box-shadow: 0 0 0 10px rgba(30, 136, 229, 0); }}
+            100% {{ box-shadow: 0 0 0 0 rgba(30, 136, 229, 0); }}
+        }}}}
+        .map-node span {{{{
+            display: none; 
+        }}}}
+        .player-avatar {{{{
+            width: 60px; 
+            height: 60px;
+            position: absolute;
+            z-index: 3;
+            transition: left 0.8s ease-in-out, top 0.8s ease-in-out; 
+            transform: translate(-50%, -50%); 
+        }}}}
+        .player-avatar img {{{{
+            width: 100%;
+            height: 100%;
+            object-fit: contain; 
+            filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.3)); 
+        }}}}
+        .cliffhanger-text {{{{
+            text-align: center;
+            font-style: italic;
+            color: #d81b60;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fce4ec;
+            border-radius: 8px;
+            border: 1px dashed #d81b60;
+        }}}}
+
+        /* Badge System Styles */
+        .achievements-section {{{{
+            background-color: #fff3e0; /* Light orange background */
+            border: 2px dashed #ff9800;
+        }}}}
+        .badges-grid {{{{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px; /* Spacing between badges */
+            justify-content: center; /* Center badges if they don't fill the row */
+            margin-top: 15px;
+        }}}}
+        .badge-item {{{{
+            width: 100px; /* Width of each badge item */
+            text-align: center;
+            background-color: #ffffff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+            position: relative; /* Needed for tooltip positioning */
+        }}}}
+        .badge-item:hover {{{{
+            transform: translateY(-3px);
+        }}}}
+        .badge-item img {{{{
+            width: 70px; /* Size of the badge image */
+            height: 70px;
+            object-fit: contain;
+            margin-bottom: 8px;
+            border-radius: 50%; /* Make badge images circular if not already */
+            background-color: #f5f5f5; /* Light background for the image itself */
+            padding: 5px;
+            box-shadow: inset 0 0 3px rgba(0,0,0,0.1);
+        }}}}
+        .badge-item p.badge-name {{{{
+            font-size: 0.9em;
+            color: #5d4037; /* Brownish text for badge name */
+            margin: 0;
+            font-weight: 600;
+            line-height: 1.2;
+            height: 2.4em; /* Max 2 lines for name */
+            overflow: hidden;
+        }}}}
+        /* Tooltip for badge description - simple CSS tooltip */
+        .badge-item[data-tooltip]:hover::after {{{{
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 105%; /* Position above the badge */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            white-space: pre-wrap; /* Allow wrapping for longer descriptions */
+            z-index: 10;
+            opacity: 0.95;
+            width: 200px; /* Set a max-width for the tooltip */
+            box-sizing: border-box;
+            text-align: left;
+        }}}}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ DALA Learning Adventure! ✨</h1>
+
+        <!-- Adventure Quest Saga Section -->
+        <div class="section adventure-quest-section">
+            <h2><span class="section-icon"><img src="./assets/adventure_quest_saga/quest_scroll_icon.png" alt="Quest Scroll"></span>Your Epic Quest!</h2>
+            <p>Follow the path on your learning adventure! Each step brings new knowledge and exciting challenges.</p>
+            <div id="adventureMapDisplay" class="adventure-map">
+                <div class="map-path"></div> 
+                {{adventure_map_html}}
+            </div>
+            <div id="cliffhangerDisplay" class="cliffhanger-text">
+                {{cliffhanger_text}}
+            </div>
+        </div>
+
+        <!-- Achievements/Badges Section -->
+        <div class="section achievements-section">
+            <h2><span class="section-icon">🏆</span>My Achievements</h2>
+            <div id="badgesDisplay" class="badges-grid">
+                {{badges_html}}
+            </div>
+        </div>
+        
+        <div class="section hlp-section">
+            <h2><span class="section-icon">🧭</span>Holistic Learner Profile - Getting Started</h2>
+            <p>Let's find out a bit about you to make your learning adventure perfect!</p>
+
+            <div id="hlpIntroTask">
+                <h3><span class="section-icon">🎨</span>Visual or Textual?</h3>
+                <p>Do you prefer learning with pictures and diagrams, or with written words? Click your choice!</p>
+                <button id="visualPrefButton" class="button">I like Pictures!</button>
+                <button id="textualPrefButton" class="button">I like Words!</button>
+                <div id="learningStyleResult" class="diagnostic-task-result" style="display:none;"></div>
+            </div>
+
+            <div id="hlpInterestsTask" style="display:none;">
+                <h3><span class="section-icon">💖</span>What are your main interests?</h3>
+                <p>Tell us what you love to learn about! You can type your interests below or use the microphone to tell us.</p>
+                <div class="interactive-selection-area goal-input-area">
+                    <div class="input-with-mic">
+                        <input type="text" id="studentInterestsInput" placeholder="e.g., space, dinosaurs, coding, art">
+                        <button id="interestsMicButton" class="mic-button" title="Use microphone for interests">🎤</button>
+                    </div>
+                    <div id="interestsVoiceStatus" class="voice-status"></div>
+                    <button id="submitInterestsButton" class="button" style="margin-top:10px;">Save Interests</button>
+                </div>
+                <div id="interestsResult" class="selected-items-display" style="display:none;"></div>
+            </div>
+
+            <div id="hlpStrugglesTask" style="display:none;">
+                <h3><span class="section-icon">🛠️</span>What do you find tricky?</h3>
+                <p>Everyone finds some things a bit harder. Knowing this helps us help you! Select any areas below, or add your own.</p>
+                <div class="interactive-selection-area" id="struggleSelectionArea">
+                    <!-- Struggle options will be populated by JS -->
+                </div>
+                <div class="goal-input-area">
+                    <input type="text" id="customStruggleInput" placeholder="Type another area if not listed...">
+                    <button id="addCustomStruggleButton" class="button" style="margin-top:5px;">Add Custom</button>
+                </div>
+                <button id="submitStrugglesButton" class="button" style="margin-top:10px;">Confirm Areas</button>
+                <div id="strugglesResult" class="selected-items-display" style="display:none;"></div>
+            </div>
+
+            <div id="hlpGoalsTask" style="display:none;">
+                <h3><span class="section-icon">🎯</span>What are your learning goals?</h3>
+                <p>What do you want to achieve on your DALA adventure? (e.g., "Get better at fractions", "Learn to code a game")</p>
+                <div class="goal-input-area">
+                    <textarea id="learningGoalsInput" placeholder="My learning goals are..."></textarea>
+                    <button id="submitGoalsButton" class="button" style="margin-top:10px;">Set Goals</button>
+                </div>
+                <div id="goalsResult" class="selected-items-display" style="display:none;"></div>
+            </div>
+
+            <!-- Stage 2 HLP Mini-Tasks Section -->
+            <div id="hlpAdvancedTasksSection" style="display:none;">
+                <h3><span class="section-icon">🧩</span>Advanced Discovery Tasks</h3>
+                <p>Let's try a few more fun activities to understand your learning style even better!</p>
+
+                <div id="storyWeaverTaskArea">
+                    <h4><span class="section-icon">✍️</span>Story Weaver Challenge</h4>
+                    <p>You see a mysterious glowing doorway in an ancient tree. What happens next? (Max 150 characters)</p>
+                    <div class="goal-input-area">
+                        <textarea id="storyWeaverInput" maxlength="150" placeholder="Continue the story..."></textarea>
+                        <button id="submitStoryWeaver" class="button">Submit Story Snippet</button>
+                    </div>
+                    <div id="storyWeaverResult" class="diagnostic-task-result" style="display:none;"></div>
+                </div>
+
+                <div id="mindMapperTaskArea" style="margin-top:20px;">
+                    <h4><span class="section-icon">🕸️</span>Mind Mapper Challenge</h4>
+                    <p>How would you visually organize these concepts: <strong>Sun, Tree, Water, Growth, Energy</strong>? Describe your visual map or draw it and describe.</p>
+                    <div class="goal-input-area">
+                        <textarea id="mindMapperInput" placeholder="Describe your mind map..."></textarea>
+                        <button id="submitMindMapper" class="button">Submit Mind Map Idea</button>
+                    </div>
+                    <div id="mindMapperResult" class="diagnostic-task-result" style="display:none;"></div>
+                </div>
+            </div>
+            <!-- End of Stage 2 HLP Mini-Tasks -->
+
+            <button id="completeHlpButton" class="button" style="display:none; margin-top:20px;">All Done! See My Profile & Pathway!</button>
+        </div>
+
+        <div class="section profile-display-section" id="profileDisplaySection" style="display:none;">
+            <h2><span class="section-icon">👤</span>My Learner Profile</h2>
+            <div id="learnerProfileDisplay">
+                <pre>{{learner_profile_str}}</pre>
+            </div>
+        </div>
+
+        <div class="section pathway-display-section" id="pathwayDisplaySection" style="display:none;">
+            <h2><span class="section-icon">🗺️</span>My Learning Pathway</h2>
+            <div id="learningPathwayDisplay">
+                <ul>
+                    {{learning_pathway_html}}
+                </ul>
+            </div>
+        </div>
+
+        <div class="section game-section" id="gameSection" style="display:none;">
+            <h2><span class="section-icon">⭐</span>Star Collector Mini-Game!</h2>
+            <p>You've unlocked a reward! Click the stars as they appear. Get 10 to win!</p>
+            <div class="game-info">Score: <span id="score">0</span></div>
+            <canvas id="gameCanvas" width="600" height="300"></canvas>
+            <div id="gameMessage"></div>
+            <button id="restartGameButton" class="button" style="display:none;">Play Again</button>
+        </div>
+
+    </div>
+
+    <script>
+        const studentProfile = {{profile_js_object}};
+        const predefinedInterests = {predefined_interests_js};
+        const predefinedStruggles = {predefined_struggles_js};
+        const adventureMapData = {{adventure_map_data_js}};
+        const badgesData = {{badges_data_js}};
+        const cliffhangerText = "{{cliffhanger_text_js}}";
+
+        // HLP Introduction Flow
+        const visualPrefButton = document.getElementById('visualPrefButton');
+        const textualPrefButton = document.getElementById('textualPrefButton');
+        const learningStyleResult = document.getElementById('learningStyleResult');
+        const hlpInterestsTask = document.getElementById('hlpInterestsTask');
+        const hlpStrugglesTask = document.getElementById('hlpStrugglesTask');
+        const hlpGoalsTask = document.getElementById('hlpGoalsTask');
+        const hlpAdvancedTasksSection = document.getElementById('hlpAdvancedTasksSection');
+        const completeHlpButton = document.getElementById('completeHlpButton');
+
+        visualPrefButton.addEventListener('click', () => handleLearningStyleChoice('visual'));
+        textualPrefButton.addEventListener('click', () => handleLearningStyleChoice('textual'));
+
+        function handleLearningStyleChoice(preference) {{
+            studentProfile.learning_preferences.learning_style_preference = preference;
+            learningStyleResult.innerHTML = `<p>Great! You prefer <strong>${{preference}}</strong> learning.</p>`;
+            learningStyleResult.style.display = 'block';
+            visualPrefButton.disabled = true;
+            textualPrefButton.disabled = true;
+            hlpInterestsTask.style.display = 'block'; // Show next task
+        }}
+
+        // Interests Task
+        const studentInterestsInput = document.getElementById('studentInterestsInput');
+        const submitInterestsButton = document.getElementById('submitInterestsButton');
+        const interestsResult = document.getElementById('interestsResult');
+        const interestsMicButton = document.getElementById('interestsMicButton');
+        const interestsVoiceStatus = document.getElementById('interestsVoiceStatus');
+
+        submitInterestsButton.addEventListener('click', () => {{
+            const interestsText = studentInterestsInput.value.trim();
+            if (interestsText) {{
+                studentProfile.interests = interestsText.split(',').map(s => s.trim()).filter(s => s);
+                interestsResult.innerHTML = `<p>Your interests: <em>${{studentProfile.interests.join(', ')}}</em></p>`;
+                interestsResult.style.display = 'block';
+                submitInterestsButton.disabled = true;
+                studentInterestsInput.disabled = true;
+                interestsMicButton.disabled = true; // Disable mic after submission
+                hlpStrugglesTask.style.display = 'block'; // Show next task
+            }}
+        }});
+
+        // Voice Input for Interests
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognitionInterests;
+
+        if (SpeechRecognition) {{
+            recognitionInterests = new SpeechRecognition();
+            recognitionInterests.continuous = false;
+            recognitionInterests.lang = 'en-GB';
+            recognitionInterests.interimResults = true;
+            recognitionInterests.maxAlternatives = 1;
+
+            interestsMicButton.addEventListener('click', () => {{
+                if (interestsMicButton.classList.contains('listening')) {{
+                    recognitionInterests.stop();
+                    interestsMicButton.classList.remove('listening');
+                    interestsMicButton.innerHTML = '🎤';
+                    interestsVoiceStatus.textContent = 'Voice input stopped.';
+                }} else {{
+                    try {{
+                        recognitionInterests.start();
+                        interestsMicButton.classList.add('listening');
+                        interestsMicButton.innerHTML = '🛑'; // Stop icon
+                        interestsVoiceStatus.textContent = 'Listening... Speak now!';
+                    }} catch (e) {{
+                        interestsVoiceStatus.textContent = 'Error starting voice input. Try again.';
+                        console.error("Speech recognition error on start: ", e);
+                        interestsMicButton.classList.remove('listening');
+                        interestsMicButton.innerHTML = '🎤';
+                    }}
+                }}
+            }});
+
+            recognitionInterests.onresult = (event) => {{
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {{
+                    if (event.results[i].isFinal) {{
+                        finalTranscript += event.results[i][0].transcript;
+                    }} else {{
+                        interimTranscript += event.results[i][0].transcript;
+                    }}
+                }}
+                studentInterestsInput.value = finalTranscript || interimTranscript; // Show interim as well
+                if (finalTranscript) {{
+                    interestsVoiceStatus.textContent = 'Finished listening.';
+                    interestsMicButton.classList.remove('listening');
+                    interestsMicButton.innerHTML = '🎤';
+                }}
+            }};
+
+            recognitionInterests.onerror = (event) => {{
+                let errorMessage = 'An error occurred during voice recognition.';
+                if (event.error === 'no-speech') {{
+                    errorMessage = 'No speech was detected. Please try again.';
+                }} else if (event.error === 'audio-capture') {{
+                    errorMessage = 'Microphone problem. Ensure it is enabled and not in use.';
+                }} else if (event.error === 'not-allowed') {{
+                    errorMessage = 'Permission to use microphone was denied. Please enable it in your browser settings.';
+                }} else if (event.error === 'network') {{
+                    errorMessage = 'Network error during speech recognition.';
+                }}
+                interestsVoiceStatus.textContent = errorMessage;
+                console.error('Speech recognition error:', event.error, event.message);
+                interestsMicButton.classList.remove('listening');
+                interestsMicButton.innerHTML = '🎤';
+            }};
+
+            recognitionInterests.onend = () => {{
+                if (interestsMicButton.classList.contains('listening')) {{ // If ended unexpectedly
+                    interestsMicButton.classList.remove('listening');
+                    interestsMicButton.innerHTML = '🎤';
+                    if (!interestsVoiceStatus.textContent.includes('Finished listening') && !interestsVoiceStatus.textContent.includes('error')) {{
+                         interestsVoiceStatus.textContent = 'Voice input ended.';
+                    }}
+                }}
+            }};
+
+        }} else {{
+            interestsMicButton.disabled = true;
+            interestsMicButton.title = "Voice input not supported in your browser.";
+            interestsVoiceStatus.textContent = 'Voice input is not supported in this browser. Please type your interests.';
+        }}
+
+        // Struggles Task
+        const struggleSelectionArea = document.getElementById('struggleSelectionArea');
+        const customStruggleInput = document.getElementById('customStruggleInput');
+        const addCustomStruggleButton = document.getElementById('addCustomStruggleButton');
+        const submitStrugglesButton = document.getElementById('submitStrugglesButton');
+        const strugglesResult = document.getElementById('strugglesResult');
+        let selectedStruggles = [];
+
+        predefinedStruggles.forEach(struggle => {{
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = struggle;
+            checkbox.name = 'struggle';
+            checkbox.addEventListener('change', (event) => {{
+                if (event.target.checked) {{
+                    selectedStruggles.push(event.target.value);
+                }} else {{
+                    selectedStruggles = selectedStruggles.filter(s => s !== event.target.value);
+                }}
+            }});
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(struggle));
+            struggleSelectionArea.appendChild(label);
+        }});
+
+        addCustomStruggleButton.addEventListener('click', () => {{
+            const customValue = customStruggleInput.value.trim();
+            if (customValue && !selectedStruggles.includes(customValue) && !predefinedStruggles.includes(customValue)) {{
+                const label = document.createElement('label');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = customValue;
+                checkbox.name = 'struggle';
+                checkbox.checked = true;
+                checkbox.addEventListener('change', (event) => {{
+                    if (event.target.checked) {{
+                        selectedStruggles.push(event.target.value);
+                    }} else {{
+                        selectedStruggles = selectedStruggles.filter(s => s !== event.target.value);
+                    }}
+                }});
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(customValue + " (custom)"));
+                struggleSelectionArea.appendChild(label);
+                selectedStruggles.push(customValue);
+                customStruggleInput.value = '';
+            }}
+        }});
+
+        submitStrugglesButton.addEventListener('click', () => {{
+            studentProfile.identified_struggles = [...new Set(selectedStruggles)]; // Deduplicate
+            let struggleTagsHtml = studentProfile.identified_struggles.map(s => `<span class="selected-item-tag">${{html.escape(s)}}</span>`).join('');
+            strugglesResult.innerHTML = `<p>Selected areas: ${{(struggleTagsHtml || '<em>None selected</em>')}}</p>`;
+            strugglesResult.style.display = 'block';
+            submitStrugglesButton.disabled = true;
+            addCustomStruggleButton.disabled = true;
+            customStruggleInput.disabled = true;
+            Array.from(struggleSelectionArea.querySelectorAll('input[type="checkbox"]')).forEach(cb => cb.disabled = true);
+            hlpGoalsTask.style.display = 'block'; // Show next task
+        }});
+
+        // Goals Task
+        const learningGoalsInput = document.getElementById('learningGoalsInput');
+        const submitGoalsButton = document.getElementById('submitGoalsButton');
+        const goalsResult = document.getElementById('goalsResult');
+
+        submitGoalsButton.addEventListener('click', () => {{
+            const goalsText = learningGoalsInput.value.trim();
+            if (goalsText) {{
+                studentProfile.learning_goals = goalsText;
+                goalsResult.innerHTML = `<p>Your learning goals: <em>${{html.escape(studentProfile.learning_goals)}}</em></p>`;
+                goalsResult.style.display = 'block';
+                submitGoalsButton.disabled = true;
+                learningGoalsInput.disabled = true;
+                hlpAdvancedTasksSection.style.display = 'block'; // Show advanced tasks
+                completeHlpButton.style.display = 'inline-block'; // Show completion button
+            }}
+        }});
+
+        // Story Weaver Task
+        const storyWeaverInput = document.getElementById('storyWeaverInput');
+        const submitStoryWeaver = document.getElementById('submitStoryWeaver');
+        const storyWeaverResult = document.getElementById('storyWeaverResult');
+
+        submitStoryWeaver.addEventListener('click', () => {{
+            const storyText = storyWeaverInput.value.trim();
+            if (storyText) {{
+                studentProfile.diagnostic_results.story_weaver_response = storyText;
+                // Simple analysis for now
+                let feedback = "Thanks for sharing your story snippet!";
+                if (storyText.length > 50) feedback += " That's a creative start!";
+                else if (storyText.length < 10) feedback += " A bit short, but intriguing!";
+                storyWeaverResult.innerHTML = `<p>${{feedback}}</p><p><em>Your response: ${{}}</em></p>`;
+                storyWeaverResult.style.display = 'block';
+                submitStoryWeaver.disabled = true;
+                storyWeaverInput.disabled = true;
+            }}
+        }});
+
+        // Mind Mapper Task
+        const mindMapperInput = document.getElementById('mindMapperInput');
+        const submitMindMapper = document.getElementById('submitMindMapper');
+        const mindMapperResult = document.getElementById('mindMapperResult');
+
+        submitMindMapper.addEventListener('click', () => {{
+            const mapDescription = mindMapperInput.value.trim();
+            if (mapDescription) {{
+                studentProfile.diagnostic_results.mind_mapper_response = mapDescription;
+                let feedback = "Interesting way to connect those ideas!";
+                if (mapDescription.toLowerCase().includes('sun') && mapDescription.toLowerCase().includes('center')) {{
+                    feedback += " Placing the sun at the center is a common and logical approach.";
+                }}
+                mindMapperResult.innerHTML = `<p>${{feedback}}</p><p><em>Your description: ${{}}</em></p>`;
+                mindMapperResult.style.display = 'block';
+                submitMindMapper.disabled = true;
+                mindMapperInput.disabled = true;
+            }}
+        }});
+
+        // Complete HLP
+        const profileDisplaySection = document.getElementById('profileDisplaySection');
+        const pathwayDisplaySection = document.getElementById('pathwayDisplaySection');
+        const gameSection = document.getElementById('gameSection');
+
+        completeHlpButton.addEventListener('click', () => {{
+            // Hide HLP intro section, show profile, pathway, and game
+            document.querySelector('.hlp-section').style.display = 'none';
+            profileDisplaySection.style.display = 'block';
+            pathwayDisplaySection.style.display = 'block';
+            gameSection.style.display = 'block';
+            initializeGame(); // Start the mini-game
+        }});
+
+        // Star Collector Mini-Game Logic
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const gameMessage = document.getElementById('gameMessage');
+        const restartGameButton = document.getElementById('restartGameButton');
+        let score = 0;
+        let stars = [];
+        const starRadius = 15;
+        const gameDuration = 30000; // 30 seconds
+        let gameTimer;
+        let gameActive = false;
+
+        function drawStar(x, y) {{
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {{
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * starRadius + x,
+                           -Math.sin((18 + i * 72) * Math.PI / 180) * starRadius + y);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * starRadius / 2 + x,
+                           -Math.sin((54 + i * 72) * Math.PI / 180) * starRadius / 2 + y);
+            }}
+            ctx.closePath();
+            ctx.fillStyle = '#FFD700'; // Gold
+            ctx.fill();
+        }}
+
+        function spawnStar() {{
+            if (!gameActive) return;
+            const x = Math.random() * (canvas.width - starRadius * 2) + starRadius;
+            const y = Math.random() * (canvas.height - starRadius * 2) + starRadius;
+            stars.push({{ x, y, lifetime: Date.now() + 2000 }}); // Star disappears after 2 seconds
+            drawStar(x, y);
+        }}
+
+        function clearCanvas() {{
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }}
+
+        function updateGame() {{
+            if (!gameActive) return;
+            clearCanvas();
+            stars = stars.filter(star => star.lifetime > Date.now());
+            stars.forEach(star => drawStar(star.x, star.y));
+            if (Math.random() < 0.03 && stars.length < 5) {{ // Control spawn rate
+                spawnStar();
+            }}
+            requestAnimationFrame(updateGame);
+        }}
+
+        canvas.addEventListener('click', (event) => {{
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            for (let i = stars.length - 1; i >= 0; i--) {{
+                const star = stars[i];
+                const distance = Math.sqrt((clickX - star.x)**2 + (clickY - star.y)**2);
+                if (distance < starRadius) {{
+                    score++;
+                    scoreDisplay.textContent = score;
+                    stars.splice(i, 1);
+                    if (score >= 10) {{
+                        endGame(true);
+                    }}
+                    break;
+                }}
+            }}
+        }});
+
+        function startGame() {{
+            score = 0;
+            scoreDisplay.textContent = score;
+            stars = [];
+            gameMessage.textContent = '';
+            gameActive = true;
+            restartGameButton.style.display = 'none';
+            clearTimeout(gameTimer);
+            gameTimer = setTimeout(() => endGame(false), gameDuration);
+            updateGame();
+        }}
+
+        function endGame(won) {{
+            gameActive = false;
+            clearTimeout(gameTimer);
+            if (won) {{
+                gameMessage.textContent = "Congratulations! You collected 10 stars!";
+                gameMessage.style.color = "#2e7d32";
+            }} else {{
+                gameMessage.textContent = "Time's up! Try again?";
+                gameMessage.style.color = "#d32f2f";
+            }}
+            restartGameButton.style.display = 'block';
+        }}
+
+        function initializeGame() {{
+            startGame();
+        }}
+        restartGameButton.addEventListener('click', startGame);
+
+        // Adventure Map Display Logic
+        const adventureMapDisplay = document.getElementById('adventureMapDisplay');
+        const playerAvatar = adventureMapDisplay.querySelector('.player-avatar');
+        const cliffhangerDiv = document.getElementById('cliffhangerDisplay');
+
+        function renderAdventureMap() {{
+            let mapNodesHtml = '';
+            const totalNodes = adventureMapData.nodes.length;
+            adventureMapData.nodes.forEach((node, index) => {{
+                let nodeClass = 'map-node';
+                if (node.status === 'completed') nodeClass += ' completed';
+                if (node.status === 'current') nodeClass += ' current';
+                
+                // Calculate position: simple linear for now, can be more complex
+                const leftPercentage = 5 + (90 / Math.max(1, totalNodes -1)) * index;
+                const topPercentage = 50; // Simple horizontal line for now
+                
+                mapNodesHtml += `<div class="${{nodeClass}}" style="left: ${{leftPercentage}}%; top: ${{topPercentage}}%; transform: translate(-50%, -50%);" title="${{html.escape(node.description)}}"><span>${{index + 1}}</span></div>`;
+            
+                if (node.status === 'current') {{
+                    // Position avatar at the current node
+                    // Ensure avatar is created if not already
+                    if (playerAvatar) {{
+                        playerAvatar.style.left = `${{leftPercentage}}%`;
+                        playerAvatar.style.top = `${{topPercentage}}%`;
+                    }}
+                }}
+            }});
+            // Add player avatar if not already part of the template string
+            const existingAvatar = adventureMapDisplay.querySelector('.player-avatar');
+            if (!existingAvatar) {{
+                 mapNodesHtml += `<div class="player-avatar" style="left: 5%; top: 50%;"><img src="./assets/adventure_quest_saga/student_avatar.png" alt="Your Avatar"></div>`;
+            }}
+            // Insert nodes before the avatar if it exists, or just append
+            const pathElement = adventureMapDisplay.querySelector('.map-path');
+            if (pathElement) {{
+                pathElement.insertAdjacentHTML('afterend', mapNodesHtml);
+            }} else {{
+                adventureMapDisplay.innerHTML = mapNodesHtml; // Fallback if path element is missing
+            }}
+
+            cliffhangerDiv.textContent = cliffhangerText;
+        }}
+
+        // Badges Display Logic
+        const badgesDisplay = document.getElementById('badgesDisplay');
+        function renderBadges() {{
+            let badgesHtmlContent = '';
+            if (badgesData && badgesData.length > 0) {{
+                badgesData.forEach(badge => {{
+                    badgesHtmlContent += `
+                    <div class="badge-item" data-tooltip="${{html.escape(badge.description)}} (Earned: ${{badge.earned_date}})">
+                        <img src="${{badge.image_url}}" alt="${{html.escape(badge.name)}}">
+                        <p class="badge-name">${{html.escape(badge.name)}}</p>
+                    </div>`;
+                }});
+            }} else {{
+                badgesHtmlContent = "<p>No badges earned yet. Keep learning to unlock them!</p>";
+            }}
+            badgesDisplay.innerHTML = badgesHtmlContent;
+        }}
+
+        // Initial HLP setup and rendering calls
+        document.addEventListener('DOMContentLoaded', () => {{
+            renderAdventureMap();
+            renderBadges();
+            // Any other initial setup
+        }});
+
+    </script>
+</body>
+</html>
+"""
+
+ASSET_BASE_PATH = "./assets"
+ADVENTURE_ASSETS_PATH = f"{{ASSET_BASE_PATH}}/adventure_quest_saga"
+BADGE_ASSETS_PATH = f"{{ASSET_BASE_PATH}}/badges"
+
+DEFAULT_AVATAR_IMG = f"{{ADVENTURE_ASSETS_PATH}}/student_avatar.png"
+DEFAULT_MAP_BG_IMG = f"{{ADVENTURE_ASSETS_PATH}}/world_map_background.png"
+DEFAULT_QUEST_ICON = f"{{ADVENTURE_ASSETS_PATH}}/quest_scroll_icon.png"
+
+
+def _generate_hlp_tasks_html(profile, predefined_interests, predefined_struggles):
+    """Generates HTML for the HLP interactive tasks."""
+    # This function will be expanded to generate the HTML for each HLP task
+    # For now, it's a placeholder for where the specific task HTML would be built
+    # The main template already includes the static structure for these tasks.
+    # We might populate dynamic parts like predefined_struggles here if needed via JS later.
+    return """ """
+
+def _generate_learner_profile_html(profile):
+    """Generates HTML to display the learner profile."""
+    profile_str = str(profile)
+    return f"<pre>{{html.escape(profile_str)}}</pre>"
+
+def _generate_learning_pathway_html(pathway):
+    """Generates HTML to display the learning pathway."""
+    if not pathway:
+        return "<p>Your learning pathway is being prepared. Complete your profile first!</p>"
+    
+    pathway_html = ""
+    for i, lo_data in enumerate(pathway):
+        lo_title = html.escape(lo_data["description"])
+        lo_id = html.escape(lo_data["id"])
+        pathway_html += f"<li><div class=\"lo-title\">Step {{i+1}}: {{lo_title}} (LO ID: {{lo_id}})</div>"
+        if lo_data.get("content_items"):
+            pathway_html += "<ul>"
+            for item in lo_data["content_items"]:
+                item_title = html.escape(item["title"])
+                item_type = html.escape(item["type"])
+                pathway_html += f"<li><div class=\"content-title\">{{item_title}} <em>({{item_type}})</em></div></li>"
+            pathway_html += "</ul>"
+        pathway_html += "</li>"
+    return pathway_html
+
+def _generate_adventure_map_js_data(pathway, profile):
+    """Generates JS data structure for the adventure map based on pathway progress."""
+    nodes = []
+    current_lo_id = profile.current_learning_objective_id
+    completed_los = profile.completed_los
+    current_found = False
+
+    if not pathway: # Handle empty pathway gracefully
+        # Create a single starting node if pathway is empty
+        return {{
+            "nodes": [
+                {{"id": "start_node", "description": "Your adventure begins here! Complete your profile to see your quests.", "status": "current"}}
+            ]
+        }}
+
+    for lo_data in pathway:
+        status = "pending"
+        
+        # Ensure lo_id is a string for comparisons and usage as ID
+        raw_lo_id_val = lo_data.get("id")
+        processed_lo_id_str = ""
+        if isinstance(raw_lo_id_val, dict):
+            print(f"Warning: LO ID is a dict: {raw_lo_id_val}. Converting to string.")
+            processed_lo_id_str = str(raw_lo_id_val)
+        elif raw_lo_id_val is None:
+            processed_lo_id_str = "lo_id_was_none" 
+            print(f"Warning: LO ID was None. Using placeholder: {processed_lo_id_str}")
+        else:
+            processed_lo_id_str = str(raw_lo_id_val)
+
+        if processed_lo_id_str in completed_los:
+            status = "completed"
+        elif (current_lo_id is not None and processed_lo_id_str == str(current_lo_id)) and not current_found:
+            status = "current"
+            current_found = True
+        
+        nodes.append({
+            "id": processed_lo_id_str,
+            "description": html.escape(str(lo_data.get("description", ""))),
+            "status": status
+        })
+    
+    # If no current LO is set from pathway (e.g., all completed or pathway just generated),
+    # mark the first non-completed as current, or last if all completed.
+    if not current_found and nodes:
+        first_pending_idx = -1
+        for i, node in enumerate(nodes):
+            if node["status"] == "pending":
+                first_pending_idx = i
+                break
+        if first_pending_idx != -1:
+            nodes[first_pending_idx]["status"] = "current"
+            if profile.current_learning_objective_id != nodes[first_pending_idx]["id"]:
+                 profile.current_learning_objective_id = nodes[first_pending_idx]["id"] # Update profile
+        elif nodes: # All are completed or only one node
+            nodes[-1]["status"] = "current" # Mark last as current if all are done or it's the only one
+            if profile.current_learning_objective_id != nodes[-1]["id"]:
+                profile.current_learning_objective_id = nodes[-1]["id"] # Update profile
+
+    return {"nodes": nodes}
+
+def _get_cliffhanger_text(profile, pathway):
+    if not pathway or not profile.current_learning_objective_id:
+        return "Your adventure awaits! Complete your profile to start your first quest."
+    
+    all_completed = True
+    current_lo_description = "the next exciting challenge"
+    for lo_data in pathway:
+        if lo_data["id"] == profile.current_learning_objective_id:
+            current_lo_description = lo_data["description"]
+        if lo_data["id"] not in profile.completed_los:
+            all_completed = False
+            # break # Don't break, we need current_lo_description
+
+    if all_completed:
+        return "Congratulations! You've completed all quests in this chapter! What amazing discoveries await next?"
+    else:
+        return f"Next up: Embark on the quest to master '{html.escape(current_lo_description)}'!"
+
+def _generate_badges_js_data(profile):
+    """Generates JS data structure for earned badges."""
+    badges_info = []
+    today_date = datetime.date.today().strftime("%d %b %Y") # For new badges
+    for badge_id in profile.earned_badges_data:
+        if badge_id in BADGE_DEFINITIONS:
+            badge_def = BADGE_DEFINITIONS[badge_id]
+            # Use stored earned date if available, otherwise default to today (for newly awarded)
+            earned_date_str = profile.badge_earned_dates.get(badge_id, today_date)
+            badges_info.append({{
+                "id": badge_id,
+                "name": badge_def["name"],
+                "description": badge_def["description"],
+                "image_url": badge_def["image_url"],
+                "earned_date": earned_date_str
+            }})
+    return badges_info
+
+def generate_student_interface_html(profile, pathway):
+    """Generates the full HTML for the student interface."""
+    # Ensure HLP assessment is run and badges are checked before generating HTML
+    # This simulates the completion of HLP tasks if they haven't been explicitly run
+    # and awards badges based on the current profile state.
+    if not profile.diagnostic_results.get("learning_style_preference"): # A proxy for HLP completion
+        print("Running full HLP assessment as part of interface generation...")
+        run_full_hlp_assessment(profile) # This will also award initial badges
+    else:
+        # If HLP was already run, just check for any other badges that might now apply
+        # (e.g., pathway related badges after pathway generation)
+        check_and_award_all_relevant_badges(profile, pathway if pathway else [])
+
+    hlp_tasks_html = _generate_hlp_tasks_html(profile, PREDEFINED_INTERESTS, PREDEFINED_STRUGGLE_AREAS)
+    learner_profile_str = _generate_learner_profile_html(profile)
+    learning_pathway_html = _generate_learning_pathway_html(pathway)
+    
+    adventure_map_data = _generate_adventure_map_js_data(pathway, profile)
+    cliffhanger_text = _get_cliffhanger_text(profile, pathway)
+    badges_data = _generate_badges_js_data(profile)
+
+    # Convert Python data to JS-compatible strings
+    import json
+    profile_js_object_str = json.dumps(profile.to_dict()) # Use to_dict for full serializability
+    predefined_interests_js_str = json.dumps(PREDEFINED_INTERESTS)
+    predefined_struggles_js_str = json.dumps(PREDEFINED_STRUGGLE_AREAS)
+    adventure_map_data_js_str = json.dumps(adventure_map_data)
+    badges_data_js_str = json.dumps(badges_data)
+    cliffhanger_text_js_str = html.escape(cliffhanger_text) # Escape for JS string literal
+
+    # Ensure asset paths are correct for the HTML file's location
+    # The HTML will be in interface_prototype/, so assets should be relative to that.
+
+    # Using the new template with badge integration
+    # Note: Double curly braces for Python's .format(), so JS template literals need care.
+    # For JS template literals like `${{js_var}}`, use `$${{{{js_var}}}}` if it's inside a Python f-string that's part of the template.
+    # Simpler: just use concatenation or ensure the template itself doesn't use Python f-strings for JS parts.
+    # Here, the template is a large string, so direct replacement is fine.
+
+    formatted_html = HTML_TEMPLATE_V14_VOICE_INPUT.format(
+        hlp_tasks_html=hlp_tasks_html,
+        learner_profile_str=learner_profile_str,
+        learning_pathway_html=learning_pathway_html, learner_profile_json=profile_js_object_str, html=html,
+        predefined_interests_js=predefined_interests_js_str,
+        predefined_struggles_js=predefined_struggles_js_str,
+        adventure_map_html="", # Map nodes are now added by JS
+        adventure_map_data_js=adventure_map_data_js_str,
+        cliffhanger_text=cliffhanger_text, # For the div directly
+        cliffhanger_text_js=cliffhanger_text_js_str, # For JS var
+        badges_html="", # Badges are now added by JS
+        badges_data_js=badges_data_js_str,
+        # Asset paths - ensure they are relative to the HTML file location if served directly
+        # If Python serves assets, these might be different.
+        # For static generation, relative paths from HTML are typical.
+        ASSET_BASE_PATH=ASSET_BASE_PATH, 
+        ADVENTURE_ASSETS_PATH=ADVENTURE_ASSETS_PATH,
+        BADGE_ASSETS_PATH=BADGE_ASSETS_PATH,
+        DEFAULT_AVATAR_IMG=DEFAULT_AVATAR_IMG,
+        DEFAULT_MAP_BG_IMG=DEFAULT_MAP_BG_IMG,
+        DEFAULT_QUEST_ICON=DEFAULT_QUEST_ICON
+    )
+    return formatted_html
+
+if __name__ == "__main__":
+    # Create a dummy profile and pathway for testing
+    student_profile = LearnerProfile(student_id="student_007")
+    if not hasattr(student_profile, 'diagnostic_results'):
+        print("DEBUG: Forcing diagnostic_results attribute on LearnerProfile instance.")
+        student_profile.diagnostic_results = {}
+    
+    # Simulate some HLP completion for testing badges and pathway generation
+    # student_profile.diagnostic_results["learning_style_preference"] = "visual"
+    # student_profile.interests = ["space", "coding"]
+    # student_profile.identified_struggles = ["maths - fractions"]
+    # student_profile.learning_goals = "To understand fractions better and learn Python."
+    # student_profile.diagnostic_results["story_weaver_response"] = "The doorway led to a vibrant forest."
+    # student_profile.diagnostic_results["mind_mapper_response"] = "Sun in the center, radiating energy to trees, which need water for growth."
+    # student_profile.completed_hlp_tasks.add("hlp_intro") # Mark HLP intro as done
+
+    # Initialize curriculum store and pathway generator
+    curriculum_store = CurriculumContentStore(curriculum_data=CURRICULUM_SLICE, content_data=LEARNING_CONTENT_SET)
+    # curriculum_store.load_objectives_from_list(CURRICULUM_SLICE) # Obsolete: data passed in constructor
+    # curriculum_store.load_content_from_list(LEARNING_CONTENT_SET) # Obsolete: data passed in constructor
+    
+    pathway_generator = PathwayGenerator(student_profile, curriculum_store)
+    # Generate a pathway - this might award pathway-related badges if logic is in place
+    personalized_pathway = pathway_generator.generate_initial_pathway(target_lo_count=3, max_activities_per_lo=2)
+    
+    # The generate_student_interface_html function now handles HLP assessment and badge awarding internally.
+    html_output = generate_student_interface_html(student_profile, personalized_pathway)
+    
+    # Ensure the output directory exists
+    output_dir = "interface_prototype"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    file_path = os.path.join(output_dir, "dala_student_interface_v14_voice_input.html")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_output)
+    
+    print(f"Generated HTML interface: {os.path.abspath(file_path)}")
+    print(f"Student Profile after generation: {student_profile}")
+    print(f"Badges earned (data): {student_profile.earned_badges_data}")
